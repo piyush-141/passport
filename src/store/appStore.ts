@@ -3,28 +3,33 @@
 import { create } from 'zustand';
 import { PAGE_SIZES, PASSPORT_SIZES } from '../utils/measurement';
 
-export type Step = 1 | 2 | 3 | 4 | 5;
+export interface ImageFilters {
+  brightness: number; // 0-200 (100 = normal)
+  contrast: number; // 0-200 (100 = normal)
+  saturation: number; // 0-200 (100 = normal)
+  temperature: number; // -100 to 100 (0 = normal)
+  highlights: number; // -100 to 100 (0 = normal)
+  shadows: number; // -100 to 100 (0 = normal)
+  sharpen: number; // 0 to 100 (0 = normal)
+}
 
 export interface AppState {
-  // Navigation
-  currentStep: Step;
-  setStep: (s: Step) => void;
-
   // Image upload (object URLs live in RAM, revoked on change)
   rawImageUrl: string | null;
   rawImageFile: File | null;
   setRawImage: (file: File, url: string) => void;
   clearRawImage: () => void;
 
-  // Cropped image
-  croppedImageBlob: Blob | null;
-  croppedImageUrl: string | null;
-  setCroppedImage: (blob: Blob, url: string) => void;
-  clearCroppedImage: () => void;
+  // Filters & Rotation
+  filters: ImageFilters;
+  rotation: number;
+  setFilter: (key: keyof ImageFilters, val: number) => void;
+  setRotation: (val: number) => void;
+  resetFilters: () => void;
 
-  // Crop settings
-  cropZoom: number;
-  setCropZoom: (z: number) => void;
+  // Cropped area
+  cropPercent: any | null;
+  setCropPercent: (percent: any | null) => void;
 
   // Passport size
   passportSizeId: string;
@@ -59,54 +64,48 @@ export interface AppState {
   setAlignment: (a: 'center' | 'left') => void;
   resetSettings: () => void;
 
-  // PDF result
-  pdfBlob: Blob | null;
-  pdfUrl: string | null;
-  pdfLayout: { cols: number; rows: number; total: number } | null;
-  setPdfResult: (blob: Blob, url: string, layout: { cols: number; rows: number; total: number }) => void;
-  clearPdf: () => void;
-
   // UI state
   isGeneratingPdf: boolean;
   setGeneratingPdf: (v: boolean) => void;
-  pdfError: string | null;
-  setPdfError: (e: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  currentStep: 1,
-  setStep: (s) => set({ currentStep: s }),
-
   // Raw image
   rawImageUrl: null,
   rawImageFile: null,
   setRawImage: (file, url) => {
     const prev = get().rawImageUrl;
     if (prev) URL.revokeObjectURL(prev);
-    set({ rawImageUrl: url, rawImageFile: file });
+    set({ rawImageUrl: url, rawImageFile: file, cropPercent: null });
+    get().resetFilters();
   },
   clearRawImage: () => {
     const url = get().rawImageUrl;
     if (url) URL.revokeObjectURL(url);
-    set({ rawImageUrl: null, rawImageFile: null });
+    set({ rawImageUrl: null, rawImageFile: null, cropPercent: null });
   },
 
-  // Cropped image
-  croppedImageBlob: null,
-  croppedImageUrl: null,
-  setCroppedImage: (blob, url) => {
-    const prev = get().croppedImageUrl;
-    if (prev) URL.revokeObjectURL(prev);
-    set({ croppedImageBlob: blob, croppedImageUrl: url });
+  // Filters & Rotation
+  filters: {
+    brightness: 100,
+    contrast: 100,
+    saturation: 100,
+    temperature: 0,
+    highlights: 0,
+    shadows: 0,
+    sharpen: 0,
   },
-  clearCroppedImage: () => {
-    const url = get().croppedImageUrl;
-    if (url) URL.revokeObjectURL(url);
-    set({ croppedImageBlob: null, croppedImageUrl: null });
-  },
+  rotation: 0,
+  setFilter: (key, val) => set((state) => ({ filters: { ...state.filters, [key]: val } })),
+  setRotation: (val) => set({ rotation: val }),
+  resetFilters: () => set({
+    filters: { brightness: 100, contrast: 100, saturation: 100, temperature: 0, highlights: 0, shadows: 0, sharpen: 0 },
+    rotation: 0,
+  }),
 
-  cropZoom: 1,
-  setCropZoom: (z) => set({ cropZoom: z }),
+  // Cropped area
+  cropPercent: null as any,
+  setCropPercent: (percent) => set({ cropPercent: percent }),
 
   // Passport size
   passportSizeId: '28x32',
@@ -131,7 +130,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { pageSizeId, customPageW, customPageH } = get();
     if (pageSizeId === 'custom') return { width: customPageW, height: customPageH };
     const found = PAGE_SIZES.find(p => p.id === pageSizeId);
-    return found ? { width: found.width, height: found.height } : { width: 210, height: 297 };
+    return found ? { width: found.width, height: found.height } : { width: 101.6, height: 152.4 };
   },
 
   // Layout
@@ -163,27 +162,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     pageSizeId: '4x6',
     customPageW: 101.6,
     customPageH: 152.4,
-    cropZoom: 1,
   }),
-
-  // PDF
-  pdfBlob: null,
-  pdfUrl: null,
-  pdfLayout: null,
-  setPdfResult: (blob, url, layout) => {
-    const prev = get().pdfUrl;
-    if (prev) URL.revokeObjectURL(prev);
-    set({ pdfBlob: blob, pdfUrl: url, pdfLayout: layout });
-  },
-  clearPdf: () => {
-    const url = get().pdfUrl;
-    if (url) URL.revokeObjectURL(url);
-    set({ pdfBlob: null, pdfUrl: null, pdfLayout: null });
-  },
 
   // UI
   isGeneratingPdf: false,
   setGeneratingPdf: (v) => set({ isGeneratingPdf: v }),
-  pdfError: null,
-  setPdfError: (e) => set({ pdfError: e }),
 }));

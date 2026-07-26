@@ -1,21 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import './index.css';
 import { useAppStore } from './store/appStore';
-import StepProgress from './components/StepProgress';
 import UploadStep from './components/Upload/UploadStep';
-import CropStep from './components/Cropper/CropStep';
+import ImageCropper from './components/Cropper/ImageCropper';
 import SettingsStep from './components/Settings/SettingsStep';
-import PreviewStep from './components/LayoutPreview/PreviewStep';
-import PDFPreviewStep from './components/PDFPreview/PDFPreviewStep';
-import { Shield, Sun, Moon } from 'lucide-react';
+import { Shield, Sun, Moon, Upload, RefreshCw, Settings, Download, X, SlidersHorizontal } from 'lucide-react';
+import { getCroppedImg } from './utils/canvas';
+import { generatePassportPDF } from './utils/pdf';
 
 function App() {
-  const { currentStep, setStep, rawImageUrl, croppedImageUrl, pdfUrl } = useAppStore();
+  const store = useAppStore();
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') return saved;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [showEditPanel, setShowEditPanel] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync theme with document element
   useEffect(() => {
@@ -27,29 +30,74 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Determine max reachable step for back-navigation
-  const maxReachable = pdfUrl ? 5 : croppedImageUrl ? 4 : rawImageUrl ? 3 : 1;
+  const handleDownloadPDF = async () => {
+    if (!store.rawImageUrl || !store.cropPercent) {
+      alert("Please upload and crop an image first.");
+      return;
+    }
+    store.setGeneratingPdf(true);
+    try {
+      const dims = store.getPassportDimensions();
+      const dpiScale = 300 / 25.4;
+      const targetW = Math.round(dims.width * dpiScale);
+      const targetH = Math.round(dims.height * dpiScale);
+      
+      const { blob } = await getCroppedImg(store.rawImageUrl, store.cropPercent, targetW, targetH, store.rotation, store.filters);
+      
+      const pageDims = store.getPageDimensions();
+      const pdfRes = await generatePassportPDF({
+        croppedImageBlob: blob,
+        pageWidthMm: pageDims.width,
+        pageHeightMm: pageDims.height,
+        photoWidthMm: dims.width,
+        photoHeightMm: dims.height,
+        marginMm: store.margin,
+        spacingMm: store.spacing,
+        borderMm: store.border,
+        copies: store.copies,
+        gridColsOverride: store.gridColsOverride,
+        gridRowsOverride: store.gridRowsOverride,
+        alignment: store.alignment,
+      });
 
-  const stepContent = {
-    1: <UploadStep />,
-    2: <CropStep />,
-    3: <SettingsStep />,
-    4: <PreviewStep />,
-    5: <PDFPreviewStep />,
-  }[currentStep];
+      // Trigger download
+      const a = document.createElement('a');
+      a.href = pdfRes.url;
+      a.download = `Passport_Photos_${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+    } catch (err) {
+      console.error("Failed to generate PDF", err);
+      alert("Failed to generate PDF. Check console for details.");
+    } finally {
+      store.setGeneratingPdf(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      store.setRawImage(file, url);
+    }
+    e.target.value = '';
+  };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', transition: 'background-color 0.4s ease' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', transition: 'background-color 0.4s ease', overflow: 'hidden' }}>
       {/* Header */}
       <header style={{
-        position: 'sticky', top: 0, zIndex: 100,
+        flexShrink: 0,
+        zIndex: 100,
         borderBottom: '1px solid var(--border)',
         background: 'var(--bg-secondary)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         transition: 'background-color 0.4s ease, border-color 0.4s ease',
       }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginRight: 'auto' }}>
             <div style={{
@@ -59,7 +107,6 @@ function App() {
               fontSize: 22,
               color: '#ffffff',
               boxShadow: 'var(--accent-glow) 0 4px 12px',
-              transition: 'transform 0.3s ease',
             }}>
               📷
             </div>
@@ -83,106 +130,106 @@ function App() {
             fontSize: 13,
             color: 'var(--text-primary)',
             fontWeight: 600,
+            marginRight: '12px'
           }}>
             <Shield size={14} style={{ color: 'var(--accent)' }} />
             100% Local
           </div>
 
-          {/* Elegant Sun/Moon Sliding Toggle */}
-          <div 
-            className="theme-switch"
-            onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
-            aria-label="Toggle light/dark mode"
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && setTheme(t => t === 'light' ? 'dark' : 'light')}
-          >
-            <div className="theme-switch-slider" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {theme === 'light' ? <Sun size={14} style={{ color: '#ff9f0a' }} /> : <Moon size={14} style={{ color: '#0066cc' }} />}
+          {/* Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {store.rawImageUrl && (
+              <>
+                <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+                <button className="btn-secondary" onClick={() => fileInputRef.current?.click()}>
+                  <Upload size={16} /> Change
+                </button>
+                <button className="btn-secondary" onClick={store.clearRawImage}>
+                  <RefreshCw size={16} /> Reset
+                </button>
+                <button className={`btn-secondary ${showEditPanel ? 'active' : ''}`} onClick={() => setShowEditPanel(!showEditPanel)} style={showEditPanel ? { background: 'var(--accent-glow)', borderColor: 'var(--accent)', color: 'var(--accent)' } : {}}>
+                  <SlidersHorizontal size={16} /> Edit
+                </button>
+                <button className="btn-secondary" onClick={() => setShowSettings(true)}>
+                  <Settings size={16} /> Settings
+                </button>
+                <button 
+                  className="btn-primary" 
+                  onClick={handleDownloadPDF} 
+                  disabled={store.isGeneratingPdf || !store.cropPercent}
+                >
+                  {store.isGeneratingPdf ? (
+                     <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
+                  ) : (
+                    <Download size={16} />
+                  )}
+                  Download PDF
+                </button>
+              </>
+            )}
+
+            {/* Theme Toggle */}
+            <div 
+              className="theme-switch"
+              onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
+              style={{ marginLeft: 12 }}
+            >
+              <div className="theme-switch-slider" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {theme === 'light' ? <Sun size={14} style={{ color: '#ff9f0a' }} /> : <Moon size={14} style={{ color: '#0066cc' }} />}
+              </div>
+              <Sun size={14} style={{ position: 'absolute', left: 9, color: 'var(--text-muted)', pointerEvents: 'none' }} />
+              <Moon size={14} style={{ position: 'absolute', right: 9, color: 'var(--text-muted)', pointerEvents: 'none' }} />
             </div>
-            <Sun size={14} style={{ position: 'absolute', left: 9, color: 'var(--text-muted)', pointerEvents: 'none' }} />
-            <Moon size={14} style={{ position: 'absolute', right: 9, color: 'var(--text-muted)', pointerEvents: 'none' }} />
           </div>
         </div>
       </header>
 
-      {/* Main */}
-      <main style={{ flex: 1, maxWidth: 1200, width: '100%', margin: '0 auto', padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: 28 }}>
-        {/* Step Progress */}
-        <div>
-          <StepProgress
-            currentStep={currentStep}
-            onStepClick={(s) => {
-              if (s <= maxReachable) setStep(s as 1 | 2 | 3 | 4 | 5);
-            }}
-            maxReachableStep={maxReachable}
-          />
-        </div>
-
-        {/* Step Content Card */}
-        <div
-          className="glass-card"
-          style={{ padding: '32px', transition: 'background-color 0.4s ease, border-color 0.4s ease' }}
-          key={currentStep}
-        >
-          {/* Accessible, readable step header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 20 }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              padding: '4px 12px',
-              background: 'var(--accent-glow)',
-              border: '1px solid var(--accent)',
-              borderRadius: 20,
-              fontSize: 12, fontWeight: 700,
-              color: 'var(--accent)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              whiteSpace: 'nowrap',
-            }}>
-              Step {currentStep}/5
-            </div>
-            <h1 className="apple-h1" style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              {{
-                1: 'Upload Your Passport Photo',
-                2: 'Crop & Frame',
-                3: 'Configure Layout',
-                4: 'Preview Your Sheet',
-                5: 'Download PDF',
-              }[currentStep]}
-            </h1>
-            <span style={{ fontSize: 15, color: 'var(--text-secondary)', marginLeft: 6 }}>
-              {{
-                1: '— JPG/PNG, nothing is sent to any server',
-                2: '— Fixed aspect ratio, drag to reposition',
-                3: '— Page size, copies, margins & borders',
-                4: '— Review layout before generating',
-                5: '— Print at 100% scale, Actual Size',
-              }[currentStep]}
-            </span>
-          </div>
-
-          {/* Step content */}
-          <div style={{ animation: 'fadeIn 0.25s ease' }}>
-            {stepContent}
-          </div>
-        </div>
+      {/* Main Workspace */}
+      <main style={{ flex: 1, position: 'relative', background: 'var(--bg-primary)' }}>
+        {!store.rawImageUrl ? (
+          <UploadStep />
+        ) : (
+          <ImageCropper showEditPanel={showEditPanel} />
+        )}
       </main>
 
-      {/* Footer */}
-      <footer style={{
-        borderTop: '1px solid var(--border)',
-        padding: '32px 24px',
-        textAlign: 'center',
-        background: 'var(--bg-secondary)',
-        transition: 'background-color 0.4s ease, border-color 0.4s ease',
-      }}>
-        <p style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 500 }}>
-          🔒 PassportSnap — All image processing happens in your browser. Zero server uploads. Zero storage. Zero tracking.
-        </p>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
-          Built with React + pdf-lib · Fully open source · Privacy by design
-        </p>
-      </footer>
+      {/* Settings Modal */}
+      {showSettings && (
+        <div style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 200,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px'
+        }}>
+          <div className="glass-card" style={{
+            width: '100%',
+            maxWidth: 1000,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            position: 'relative',
+            background: 'var(--bg-primary)'
+          }}>
+            <button 
+              onClick={() => setShowSettings(false)}
+              style={{
+                position: 'absolute', top: 16, right: 16,
+                background: 'transparent', border: 'none',
+                cursor: 'pointer', color: 'var(--text-primary)', zIndex: 10
+              }}
+            >
+              <X size={24} />
+            </button>
+            <div style={{ padding: '32px' }}>
+              <h2 className="apple-h2" style={{ marginBottom: '24px' }}>PDF Settings</h2>
+              <SettingsStep />
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes fadeIn {

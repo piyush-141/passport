@@ -14,7 +14,7 @@
     "pdf-lib": "^1.17.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-easy-crop": "^5.5.7",
+    "react-image-crop": "^11.1.2",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

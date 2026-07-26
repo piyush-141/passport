@@ -1,4 +1,5 @@
-// Canvas utilities for cropping
+import type { ImageFilters } from '../store/appStore';
+import { applyFiltersAndRotation } from './imageProcessor';
 
 export interface PixelCrop {
   x: number;
@@ -20,9 +21,11 @@ export interface CropArea {
  */
 export async function getCroppedImg(
   imageSrc: string,
-  pixelCrop: PixelCrop,
+  cropPercent: any,
   targetWidthPx: number,
   targetHeightPx: number,
+  rotationDeg: number = 0,
+  filters?: ImageFilters
 ): Promise<{ blob: Blob; url: string }> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement('canvas');
@@ -32,12 +35,29 @@ export async function getCroppedImg(
   canvas.width = targetWidthPx;
   canvas.height = targetHeightPx;
 
+  let sourceCanvas: HTMLImageElement | HTMLCanvasElement = image;
+
+  // Apply filters and rotation if provided
+  if (filters && (rotationDeg !== 0 || Object.values(filters).some(v => v !== 0))) {
+    sourceCanvas = applyFiltersAndRotation(image, filters, rotationDeg);
+  }
+
+  // Calculate pixel coordinates from percent based on the FINAL sourceCanvas size
+  // Since sourceCanvas can be larger than image due to rotation bounding box.
+  const sourceWidth = sourceCanvas.width || (sourceCanvas as HTMLImageElement).naturalWidth;
+  const sourceHeight = sourceCanvas.height || (sourceCanvas as HTMLImageElement).naturalHeight;
+  
+  const pixelX = Math.round((cropPercent.x / 100) * sourceWidth);
+  const pixelY = Math.round((cropPercent.y / 100) * sourceHeight);
+  const pixelW = Math.round((cropPercent.width / 100) * sourceWidth);
+  const pixelH = Math.round((cropPercent.height / 100) * sourceHeight);
+
   ctx.drawImage(
-    image,
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height,
+    sourceCanvas,
+    pixelX,
+    pixelY,
+    pixelW,
+    pixelH,
     0,
     0,
     targetWidthPx,

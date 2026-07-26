@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { Upload, ImageIcon, AlertCircle } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 
@@ -9,7 +9,7 @@ export default function UploadStep() {
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { setRawImage, setStep } = useAppStore();
+  const { setRawImage } = useAppStore();
 
   const processFile = useCallback((file: File) => {
     setError(null);
@@ -23,8 +23,7 @@ export default function UploadStep() {
     }
     const url = URL.createObjectURL(file);
     setRawImage(file, url);
-    setStep(2);
-  }, [setRawImage, setStep]);
+  }, [setRawImage]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -39,21 +38,50 @@ export default function UploadStep() {
     e.target.value = '';
   };
 
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (e.clipboardData && e.clipboardData.items) {
+        for (let i = 0; i < e.clipboardData.items.length; i++) {
+          const item = e.clipboardData.items[i];
+          if (item.type.indexOf('image/') !== -1) {
+            const file = item.getAsFile();
+            if (file) {
+              e.preventDefault();
+              // Follow the requirement strictly: use DataTransfer to update the file input
+              if (inputRef.current) {
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                inputRef.current.files = dataTransfer.files;
+              }
+              processFile(file);
+              return;
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => {
+      window.removeEventListener('paste', handlePaste);
+    };
+  }, [processFile]);
+
   return (
-    <div style={{ display: 'flex', gap: 32, alignItems: 'stretch', flexDirection: 'row', flexWrap: 'wrap' }}>
-      {/* Left: Drop zone */}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', padding: '40px' }}>
       <div
         className={`dropzone${dragOver ? ' drag-over' : ''}`}
         style={{
-          flex: '2 1 500px',
-          padding: '48px 36px',
+          width: '100%',
+          maxWidth: 600,
+          padding: '60px 40px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 20,
+          gap: 24,
           textAlign: 'center',
-          minHeight: 340,
+          minHeight: 400,
         }}
         onClick={() => inputRef.current?.click()}
         onDrop={onDrop}
@@ -67,7 +95,7 @@ export default function UploadStep() {
         onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
       >
         <div style={{
-          width: 72, height: 72,
+          width: 80, height: 80,
           borderRadius: '50%',
           background: 'var(--accent-glow)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -75,16 +103,16 @@ export default function UploadStep() {
           transition: 'transform 0.3s ease',
         }}>
           {dragOver
-            ? <ImageIcon size={32} color="var(--accent)" />
-            : <Upload size={32} color="var(--accent)" />
+            ? <ImageIcon size={36} color="var(--accent)" />
+            : <Upload size={36} color="var(--accent)" />
           }
         </div>
         <div>
-          <div className="apple-h2" style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
-            {dragOver ? 'Drop your photo here' : 'Upload Passport Photo'}
+          <div className="apple-h2" style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>
+            {dragOver ? 'Drop your photo here' : 'Upload or Paste Photo'}
           </div>
-          <div style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            Drag & drop or click to browse · JPG, PNG · Max 10MB
+          <div style={{ fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Drag & drop, click to browse, or Paste (Ctrl+V) · JPG, PNG · Max 10MB
           </div>
         </div>
         <button
@@ -92,9 +120,9 @@ export default function UploadStep() {
           onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
           id="browse-btn"
           type="button"
-          style={{ fontSize: 16 }}
+          style={{ fontSize: 16, padding: '12px 24px' }}
         >
-          <Upload size={16} />
+          <Upload size={18} />
           Browse Files
         </button>
         <input
@@ -118,37 +146,6 @@ export default function UploadStep() {
             {error}
           </div>
         )}
-      </div>
-
-      {/* Right: Info column */}
-      <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Privacy banner */}
-        <div className="privacy-banner" style={{ padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-          <span style={{ fontSize: 24, lineHeight: 1 }}>🔒</span>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-              100% Private Processing
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Your photo never leaves your device. Everything is processed locally in your browser.
-            </div>
-          </div>
-        </div>
-
-        {/* Tips */}
-        {[
-          { icon: '📸', title: 'Good Lighting', desc: 'Use a well-lit, white background photo' },
-          { icon: '😐', title: 'Neutral Expression', desc: 'Face forward, eyes open, mouth closed' },
-          { icon: '🎯', title: 'High Resolution', desc: 'Highest quality original for best prints' },
-        ].map((tip) => (
-          <div key={tip.title} className="glass-card" style={{ padding: '16px 18px', display: 'flex', gap: 14, alignItems: 'center' }}>
-            <span style={{ fontSize: 24, flexShrink: 0 }}>{tip.icon}</span>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{tip.title}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{tip.desc}</div>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );

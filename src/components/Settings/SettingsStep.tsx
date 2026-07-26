@@ -1,4 +1,3 @@
-import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { PAGE_SIZES, PASSPORT_SIZES, calculateLayout } from '../../utils/measurement';
 
@@ -38,7 +37,6 @@ export default function SettingsStep() {
     passportSizeId, setPassportSize, customPassportW, customPassportH, setCustomPassport,
     pageSizeId, setPageSize, customPageW, customPageH, setCustomPage,
     copies, setCopies, margin, setMargin, spacing, setSpacing, border, setBorder,
-    setStep, croppedImageUrl,
   } = store;
 
   const passDims = store.getPassportDimensions();
@@ -63,30 +61,6 @@ export default function SettingsStep() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Photo preview bar */}
-      {croppedImageUrl && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 18,
-          padding: '14px 20px',
-          background: 'var(--bg-secondary)',
-          borderRadius: 14,
-          border: '1px solid var(--border)',
-        }}>
-          <img src={croppedImageUrl} alt="Cropped passport photo"
-            style={{ width: 56, height: 72, objectFit: 'cover', borderRadius: 8, border: '2px solid var(--border)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} />
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Photo Ready</div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
-              300 DPI · {passDims.width}×{passDims.height}mm
-            </div>
-          </div>
-          <button className="btn-secondary" style={{ marginLeft: 'auto', padding: '8px 16px', fontSize: 14 }}
-            onClick={() => setStep(2)} id="recrop-btn" type="button">
-            <ArrowLeft size={14} /> Re-crop
-          </button>
-        </div>
-      )}
-
       {/* 3-column main settings */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
 
@@ -299,10 +273,6 @@ export default function SettingsStep() {
             style={{ height: 48, fontSize: 16, border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
             Reset Defaults
-          </button>
-          <button className="btn-primary" onClick={() => setStep(4)}
-            id="go-to-preview-btn" type="button" style={{ height: 48, fontSize: 16 }}>
-            Preview Layout <ArrowRight size={16} />
           </button>
         </div>
       </div>
