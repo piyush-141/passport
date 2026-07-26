@@ -4,7 +4,7 @@ import { useAppStore } from './store/appStore';
 import UploadStep from './components/Upload/UploadStep';
 import ImageCropper from './components/Cropper/ImageCropper';
 import SettingsStep from './components/Settings/SettingsStep';
-import { Shield, Sun, Moon, Upload, RefreshCw, Settings, Download, X, SlidersHorizontal } from 'lucide-react';
+import { Sun, Moon, Upload, RefreshCw, Settings, Download, X, SlidersHorizontal } from 'lucide-react';
 import { getCroppedImg } from './utils/canvas';
 import { generatePassportPDF } from './utils/pdf';
 
@@ -98,61 +98,71 @@ function App() {
         transition: 'background-color 0.4s ease, border-color 0.4s ease',
       }}>
         <div style={{ padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginRight: 'auto' }}>
-            <div style={{
-              width: 42, height: 42, borderRadius: 12,
-              background: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 22,
-              color: '#ffffff',
-              boxShadow: 'var(--accent-glow) 0 4px 12px',
-            }}>
-              📷
-            </div>
+          {/* Logo / Title */}
+          <a href="https://photoscopy.netlify.app/" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 12, marginRight: 'auto', textDecoration: 'none' }}>
             <div>
-              <div className="apple-h1" style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
-                PassportSnap
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}>
-                Privacy-First Photo Generator
+              <div className="apple-h1" style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
+                PhotosCopy.com
               </div>
             </div>
-          </div>
-
-          {/* Privacy pill */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '6px 14px',
-            background: 'var(--bg-primary)',
-            border: '1px solid var(--border)',
-            borderRadius: 20,
-            fontSize: 13,
-            color: 'var(--text-primary)',
-            fontWeight: 600,
-            marginRight: '12px'
-          }}>
-            <Shield size={14} style={{ color: 'var(--accent)' }} />
-            100% Local
-          </div>
+          </a>
 
           {/* Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {!store.rawImageUrl && (
+              <button className="btn-secondary" onClick={() => setShowSettings(true)}>
+                <Settings size={16} /> Settings
+              </button>
+            )}
+
             {store.rawImageUrl && (
               <>
                 <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
-                <button className="btn-secondary" onClick={() => fileInputRef.current?.click()}>
-                  <Upload size={16} /> Change
-                </button>
-                <button className="btn-secondary" onClick={store.clearRawImage}>
-                  <RefreshCw size={16} /> Reset
-                </button>
+                
                 <button className={`btn-secondary ${showEditPanel ? 'active' : ''}`} onClick={() => setShowEditPanel(!showEditPanel)} style={showEditPanel ? { background: 'var(--accent-glow)', borderColor: 'var(--accent)', color: 'var(--accent)' } : {}}>
                   <SlidersHorizontal size={16} /> Edit
                 </button>
-                <button className="btn-secondary" onClick={() => setShowSettings(true)}>
-                  <Settings size={16} /> Settings
-                </button>
+
+                {/* Options Dropdown */}
+                <div className="dropdown" style={{ position: 'relative', display: 'inline-block' }}>
+                  <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Settings size={16} /> Options
+                  </button>
+                  <div className="dropdown-content" style={{
+                    display: 'none',
+                    position: 'absolute',
+                    right: 0,
+                    top: '100%',
+                    marginTop: 6,
+                    background: 'var(--bg-secondary)',
+                    minWidth: 160,
+                    boxShadow: '0px 8px 16px 0px rgba(0,0,0,0.15)',
+                    borderRadius: 12,
+                    border: '1px solid var(--border)',
+                    zIndex: 200,
+                    overflow: 'hidden'
+                  }}>
+                    <button onClick={() => fileInputRef.current?.click()} style={{
+                      width: '100%', padding: '12px 16px', background: 'none', border: 'none', textAlign: 'left',
+                      color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, fontSize: 14
+                    }} className="dropdown-item">
+                      <Upload size={14} /> Change
+                    </button>
+                    <button onClick={store.clearRawImage} style={{
+                      width: '100%', padding: '12px 16px', background: 'none', border: 'none', textAlign: 'left',
+                      color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, fontSize: 14
+                    }} className="dropdown-item">
+                      <RefreshCw size={14} /> Reset
+                    </button>
+                    <button onClick={() => setShowSettings(true)} style={{
+                      width: '100%', padding: '12px 16px', background: 'none', border: 'none', textAlign: 'left',
+                      color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, fontSize: 14
+                    }} className="dropdown-item">
+                      <Settings size={14} /> Settings
+                    </button>
+                  </div>
+                </div>
+
                 <button 
                   className="btn-primary" 
                   onClick={handleDownloadPDF} 
@@ -167,19 +177,6 @@ function App() {
                 </button>
               </>
             )}
-
-            {/* Theme Toggle */}
-            <div 
-              className="theme-switch"
-              onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
-              style={{ marginLeft: 12 }}
-            >
-              <div className="theme-switch-slider" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {theme === 'light' ? <Sun size={14} style={{ color: '#ff9f0a' }} /> : <Moon size={14} style={{ color: '#0066cc' }} />}
-              </div>
-              <Sun size={14} style={{ position: 'absolute', left: 9, color: 'var(--text-muted)', pointerEvents: 'none' }} />
-              <Moon size={14} style={{ position: 'absolute', right: 9, color: 'var(--text-muted)', pointerEvents: 'none' }} />
-            </div>
           </div>
         </div>
       </header>
@@ -212,6 +209,24 @@ function App() {
       }}>
         Designed and developed by <a href="https://github.com/piyush-141" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>Piyush</a>
       </footer>
+
+      {/* Theme Toggle (Bottom Left Corner) */}
+      <div 
+        className="theme-switch"
+        onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
+        style={{
+          position: 'absolute',
+          bottom: '6px',
+          left: '16px',
+          zIndex: 400,
+        }}
+      >
+        <div className="theme-switch-slider" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {theme === 'light' ? <Sun size={14} style={{ color: '#ff9f0a' }} /> : <Moon size={14} style={{ color: '#0066cc' }} />}
+        </div>
+        <Sun size={14} style={{ position: 'absolute', left: 9, color: 'var(--text-muted)', pointerEvents: 'none' }} />
+        <Moon size={14} style={{ position: 'absolute', right: 9, color: 'var(--text-muted)', pointerEvents: 'none' }} />
+      </div>
 
       {/* Settings Modal */}
       {showSettings && (
@@ -255,6 +270,12 @@ function App() {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        .dropdown:hover .dropdown-content {
+          display: block !important;
+        }
+        .dropdown-item:hover {
+          background-color: var(--border) !important;
         }
       `}</style>
     </div>
