@@ -86,7 +86,7 @@ function App() {
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', transition: 'background-color 0.4s ease', overflow: 'hidden' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', transition: 'background-color 0.4s ease', overflow: 'hidden', paddingBottom: '36px', position: 'relative' }}>
       {/* Header */}
       <header style={{
         flexShrink: 0,
@@ -192,6 +192,26 @@ function App() {
           <ImageCropper showEditPanel={showEditPanel} />
         )}
       </main>
+
+      {/* Footer */}
+      <footer style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: '36px',
+        textAlign: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '12px',
+        color: 'var(--text-secondary)',
+        borderTop: '1px solid var(--border)',
+        background: 'var(--bg-secondary)',
+        zIndex: 300,
+      }}>
+        Designed and developed by <a href="https://github.com/piyush-141" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>Piyush</a>
+      </footer>
 
       {/* Settings Modal */}
       {showSettings && (
