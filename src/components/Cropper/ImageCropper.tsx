@@ -44,6 +44,11 @@ export default function ImageCropper({ showEditPanel }: { showEditPanel?: boolea
     setAspect(dims.width / dims.height);
   }, [getPassportDimensions]);
 
+  // Reset local crop when rawImageUrl changes so the new image gets auto-cropped
+  useEffect(() => {
+    setCrop(undefined);
+  }, [rawImageUrl]);
+
   // Generate live preview when filters or image changes
   useEffect(() => {
     if (!hiddenImgRef.current || !rawImageUrl) return;
@@ -130,7 +135,7 @@ export default function ImageCropper({ showEditPanel }: { showEditPanel?: boolea
   }
 
   function onImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
-    if (aspect) {
+    if (aspect && !crop) {
       const { width, height } = e.currentTarget;
       setCrop(centerAspectCrop(width, height, aspect));
     }
